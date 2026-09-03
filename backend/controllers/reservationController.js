@@ -38,4 +38,17 @@ const bookSlot = async (req, res) => {
   }
 };
 
-module.exports = { bookSlot };
+const getMyReservations = async (req, res) => {
+  try {
+    const reservations = await Reservation.find({ user: req.user.id })
+      .populate('slot', 'slotNumber vehicleType status')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(reservations);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { bookSlot, getMyReservations };
