@@ -30,5 +30,53 @@ const createSlot = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+const updateSlot = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { slotNumber, vehicleType } = req.body;
 
-module.exports = { getSlots, createSlot };
+    const slot = await ParkingSlot.findById(id);
+    if (!slot) {
+      return res.status(404).json({ message: 'Slot not found' });
+    }
+
+    if (slotNumber) slot.slotNumber = slotNumber;
+    if (vehicleType) slot.vehicleType = vehicleType;
+
+    await slot.save();
+
+    res.status(200).json({
+      message: 'Slot updated successfully',
+      slot
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const deleteSlot = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const slot = await ParkingSlot.findById(id);
+    if (!slot) {
+      return res.status(404).json({ message: 'Slot not found' });
+    }
+
+    if (slot.status === 'OCCUPIED') {
+      return res.status(400).json({ message: 'Cannot delete an occupied slot' });
+    }
+
+    await ParkingSlot.findByIdAndDelete(id);
+
+    res.status(200).json({ message: 'Slot deleted successfully' });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { getSlots, createSlot, updateSlot, deleteSlot };
