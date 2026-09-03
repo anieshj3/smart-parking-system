@@ -85,4 +85,18 @@ const cancelReservation = async (req, res) => {
   }
 };
 
-module.exports = { bookSlot, getMyReservations, cancelReservation };
+const getAllReservations = async (req, res) => {
+  try {
+    const reservations = await Reservation.find()
+      .populate('user', 'name email')
+      .populate('slot', 'slotNumber vehicleType status')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(reservations);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { bookSlot, getMyReservations, cancelReservation, getAllReservations };
