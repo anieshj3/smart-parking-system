@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/authRoutes');
 const slotRoutes = require('./routes/slotRoutes');
+const reservationRoutes = require('./routes/reservationRoutes');
 
 dotenv.config();
 
@@ -13,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/slots', slotRoutes);
+app.use('/api/reservations', reservationRoutes);
 
 app.get('/', (req, res) => {
   res.send('Smart Parking Reservation System API is running');
