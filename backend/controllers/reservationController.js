@@ -50,5 +50,39 @@ const getMyReservations = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+const cancelReservation = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-module.exports = { bookSlot, getMyReservations };
+    const reservation = await Reservation.findById(id);
+
+    if (!reservation) {
+      return res.status(404).json({ message: 'Reservation not found' });
+    }
+
+    if (reservation.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to cancel this reservation' });
+    }
+
+    if (reservation.status === 'Cancelled') {
+      return res.status(400).json({ message: 'Reservation is already cancelled' });
+    }
+
+    reservation.status = 'Cancelled';
+    await reservation.save();
+
+    const slot = await ParkingSlot.findById(reservation.slot);
+    if (slot) {
+      slot.status = 'AVAILABLE';
+      await slot.save();
+    }
+
+    res.status(200).json({ message: 'Reservation cancelled successfully' });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { bookSlot, getMyReservations, cancelReservation };
