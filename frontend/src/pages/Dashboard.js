@@ -14,15 +14,13 @@ function Dashboard() {
 
   const fetchDashboard = async () => {
     try {
-      const res = await API.get("/dashboard");
-
+      const res = await API.get("/dashboard/stats");
       setStats({
         totalSlots: res.data.totalSlots || 0,
         availableSlots: res.data.availableSlots || 0,
         occupiedSlots: res.data.occupiedSlots || 0,
         totalReservations: res.data.totalReservations || 0,
       });
-
       setError("");
     } catch (error) {
       console.log("Dashboard Error:", error);
