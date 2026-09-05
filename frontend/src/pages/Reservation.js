@@ -1,88 +1,75 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import API from "../api";
 
 function Reservation() {
   const [slots, setSlots] = useState([]);
-  const [reservations, setReservations] = useState([]);
   const [selectedSlot, setSelectedSlot] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const fetchSlots = async () => {
-    try {
-      const res = await API.get("/slots");
-      setSlots(res.data);
-      setError("");
-    } catch (error) {
-      console.log(error);
-      setError("Unable to load slots");
-    }
-  };
-
-  const fetchReservations = async () => {
-    try {
-      const res = await API.get("/reservations");
-      setReservations(res.data);
-      setError("");
-    } catch (error) {
-      console.log(error);
-      setError("Unable to load reservations");
-    }
-  };
+  const [reservations, setReservations] = useState([]);
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("success");
 
   useEffect(() => {
     fetchSlots();
     fetchReservations();
   }, []);
 
-  const bookSlot = async () => {
+  const fetchSlots = async () => {
+    try {
+      const res = await API.get("/slots");
+      setSlots(res.data);
+    } catch (error) {
+      console.log("Error fetching slots:", error);
+    }
+  };
+
+  const fetchReservations = async () => {
+    try {
+      const res = await API.get("/reservations/my");
+      setReservations(res.data);
+    } catch (error) {
+      console.log("Error fetching reservations:", error);
+    }
+  };
+
+  const handleBookSlot = async (e) => {
+    e.preventDefault();
+
     if (!selectedSlot) {
-      setError("Please select a slot");
-      setSuccess("");
+      setMessage("Please select a slot");
+      setMessageType("danger");
       return;
     }
 
     try {
-      setLoading(true);
-      setError("");
-      setSuccess("");
-
-      await API.post("/reservations/book", {
+      const res = await API.post("/reservations/book", {
         slotId: selectedSlot,
       });
 
-      setSuccess("Slot booked successfully");
+      setMessage("Slot booked successfully!");
+      setMessageType("success");
       setSelectedSlot("");
-
-      fetchSlots();
       fetchReservations();
+      fetchSlots();
     } catch (error) {
-      console.log(error);
-      setError(error.response?.data?.message || "Booking failed");
-    } finally {
-      setLoading(false);
+      setMessage(error.response?.data?.message || "Unable to book slot");
+      setMessageType("danger");
     }
   };
 
-  const releaseSlot = async (id) => {
+  const handleCancelReservation = async (reservationId) => {
     try {
-      setError("");
-      setSuccess("");
-
-      await API.put(`/reservations/release/${id}`);
-
-      setSuccess("Slot released successfully");
-
-      fetchSlots();
+      await API.put(`/reservations/${reservationId}/cancel`);
+      setMessage("Reservation cancelled successfully!");
+      setMessageType("success");
       fetchReservations();
+      fetchSlots();
     } catch (error) {
-      console.log(error);
-      setError(error.response?.data?.message || "Release failed");
+      setMessage(
+        error.response?.data?.message || "Unable to cancel reservation"
+      );
+      setMessageType("danger");
     }
   };
-
-  const availableSlots = slots.filter((slot) => slot.status === "AVAILABLE");
 
   return (
     <div className="container page-shell">
@@ -93,41 +80,46 @@ function Reservation() {
         </div>
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
-      {success && <div className="alert alert-success">{success}</div>}
+      {message && (
+        <div className={`alert alert-${messageType}`}>{message}</div>
+      )}
 
-      <div className="card app-card p-3 shadow-sm mb-4">
-        <h4>Book a Slot</h4>
-
-        <select
-          className="form-control mb-3"
-          value={selectedSlot}
-          onChange={(e) => setSelectedSlot(e.target.value)}
-        >
-          <option value="">Select Slot</option>
-
-          {availableSlots.map((slot) => (
-            <option key={slot._id} value={slot._id}>
-              {slot.slotNumber} - {slot.vehicleType}
-            </option>
-          ))}
-        </select>
-
-        <button
-          className="btn btn-primary"
-          onClick={bookSlot}
-          disabled={!selectedSlot || loading}
-        >
-          {loading ? "Booking..." : "Book Slot"}
-        </button>
+      <div className="card app-card shadow-sm mb-4">
+        <div className="card-body">
+          <h5 className="card-title">Book a Slot</h5>
+          <form onSubmit={handleBookSlot}>
+            <div className="mb-3">
+              <label className="form-label">Select Slot</label>
+              <select
+                className="form-control"
+                value={selectedSlot}
+                onChange={(e) => setSelectedSlot(e.target.value)}
+              >
+                <option value="">Select a slot...</option>
+                {slots.map((slot) => (
+                  <option key={slot._id} value={slot._id}>
+                    {slot.slotNumber} - {slot.vehicleType} (
+                    {slot.status})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={!selectedSlot}
+            >
+              Book Slot
+            </button>
+          </form>
+        </div>
       </div>
 
-      <div className="card app-card p-3 shadow-sm">
-        <h4>Reservation List</h4>
-
-        <div className="table-responsive mt-3">
-          <table className="table table-bordered table-striped align-middle mb-0">
-            <thead className="table-dark">
+      <div className="card app-card shadow-sm">
+        <div className="card-body">
+          <h5 className="card-title">Reservation List</h5>
+          <table className="table">
+            <thead>
               <tr>
                 <th>User</th>
                 <th>Slot</th>
@@ -135,50 +127,46 @@ function Reservation() {
                 <th>Action</th>
               </tr>
             </thead>
-
             <tbody>
-              {reservations.length > 0 ? (
-                reservations.map((r) => (
-                  <tr key={r._id}>
-                    <td>{r.userName || "User"}</td>
-                    <td>
-                      {r.slotId?.slotNumber ? (
-                        r.slotId.slotNumber
-                      ) : (
-                        <span className="text-warning fw-semibold">Missing slot</span>
-                      )}
-                    </td>
-                    <td>
-                      <span
-                        className={
-                          r.status === "BOOKED"
-                            ? "badge bg-success"
-                            : "badge bg-secondary"
-                        }
-                      >
-                        {r.status}
-                      </span>
-                    </td>
-                    <td>
-                      {r.status === "BOOKED" && r.slotId ? (
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => releaseSlot(r._id)}
-                        >
-                          Release
-                        </button>
-                      ) : (
-                        <span className="text-muted">Released</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              ) : (
+              {reservations.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="text-center">
                     No Reservations Found
                   </td>
                 </tr>
+              ) : (
+                reservations.map((reservation) => (
+                  <tr key={reservation._id}>
+                    <td>{reservation.user.name}</td>
+                    <td>
+                      {reservation.slot.slotNumber} -{" "}
+                      {reservation.slot.vehicleType}
+                    </td>
+                    <td>
+                      <span
+                        className={`badge badge-${
+                          reservation.status === "Active"
+                            ? "success"
+                            : "secondary"
+                        }`}
+                      >
+                        {reservation.status}
+                      </span>
+                    </td>
+                    <td>
+                      {reservation.status === "Active" && (
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() =>
+                            handleCancelReservation(reservation._id)
+                          }
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
